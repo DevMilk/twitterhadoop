@@ -15,10 +15,10 @@ import javax.validation.constraints.NotBlank;
 @AllArgsConstructor
 public class Settings {
 
-    public String dataset_name = CONSTANTS.default_dataset_name;
+    public String dataset_path;
     public int number_of_top_users = 0;
     public String date = "0";
     public int length = -1;
-    public OPTIONS option = OPTIONS.LIKE; //tmp-length, mp-likes
+    public OPTIONS option = OPTIONS.RT; //tmp-length, mp-likes
 
 }

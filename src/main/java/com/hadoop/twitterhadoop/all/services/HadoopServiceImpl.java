@@ -3,6 +3,9 @@ package com.hadoop.twitterhadoop.all.services;
 import com.hadoop.twitterhadoop.all.domain.CONSTANTS;
 import com.hadoop.twitterhadoop.all.domain.OPTIONS;
 import com.hadoop.twitterhadoop.all.dto.Settings;
+import org.apache.commons.compress.utils.FileNameUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -11,93 +14,77 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 @Service
 public class HadoopServiceImpl implements HadoopService{
-    private void downloadFromHDFS(File localDir) {
-        String command = "hdfs dfs -get " + CONSTANTS.output_path + "outt" + " " + localDir;
-        System.out.println(command);
-        try {
-            // Execute terminal command
-            Process proc = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String line = "";
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-            }
-            proc.waitFor();
-            System.out.println("Downloaded.");
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-    private void removeOlderFile(File file) {
-        String command = "hdfs dfs -rm /" + file.getName();
-        System.out.println(command);
-        try {
-            // Execute terminal command
-            Process proc = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String line = "";
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-            }
-            proc.waitFor();
-            System.out.println("Deleted.");
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-    private String uploadIntoHDFS(File file) {
-        removeOlderFile(file);
-        String command = "hdfs dfs -put " + file.toString() + " /";
-        System.out.println(command);
-        try {
-            // Execute terminal command
-            Process proc = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String line = "";
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-            }
-            proc.waitFor();
-            System.out.println("Uploaded.");
-            return "/" + file.getName();
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-    private String getResults(String output_path) {
-        String command = "hdfs dfs -cat " + output_path;
-        try {
-            // Execute terminal command
-            Process proc = Runtime.getRuntime().exec(command);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            String line = "", output = "";
-            while ((line = reader.readLine()) != null) {
-                output += (line + "\n");
-            }
-            proc.waitFor();
 
-            return output;
+    @Autowired
+    ResourceLoader resourceLoader;
+
+
+    private String runCommand(String command){
+        System.out.println(command);
+        String out = "";
+        try {
+
+            Process process = null;
+
+            if(CONSTANTS.isWindows){
+                ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", command);
+                builder.redirectErrorStream(true);
+                process = builder.start();
+            } else {
+                process = Runtime.getRuntime().exec(command);
+            }
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line = "";
+            while ((line = reader.readLine()) != null) {
+                out += (line + "\n");
+            }
+            System.out.println(out);
+            process.waitFor();
+            reader.close();
+            return out;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-        return "None";
+        return "";
+    }
+
+    private String getPathFromResources(String path){
+        try {
+            String absolute_path = "\""+resourceLoader.getResource("classpath:"+path).getFile().getPath() +"\"";
+            System.out.println(absolute_path);
+            return absolute_path;
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        return "";
+    }
+    public File downloadLastResult() throws IOException{
+        String command = "hdfs dfs -get " + CONSTANTS.full_output_path_hdfs;
+        runCommand(command);
+        return resourceLoader.getResource("classpath:" + CONSTANTS.output_name).getFile();
+    }
+    public String uploadIntoHDFS(String file_path) {
+        String command = "hdfs dfs -put -f " + file_path + " /"; ;
+        runCommand(command);
+        return FileNameUtils.getBaseName(file_path)+"."+FileNameUtils.getExtension(file_path).split("\"")[0];
+    }
+    private String getResults() {
+        String command = "hdfs dfs -cat " + CONSTANTS.full_output_path_hdfs;
+        return runCommand(command);
     }
     @Override
     public String executeCommand(Settings settings) {
-        String dataset_path = settings.getDataset_name();
-        Runtime runtime = Runtime.getRuntime();
+        String dataset_path = settings.getDataset_path();
         OPTIONS option = settings.getOption();
         String jar_path = option.path;
-        String full_out_path = (CONSTANTS.output_path + "outt");
-        String arg = "";
         try {
-            arg = Settings.class.getDeclaredField(option.argType).get(settings).toString();
-            File file = new File(dataset_path);
-            String hdfs_path = uploadIntoHDFS(file);
-            String command ="hadoop jar " + jar_path + " " + hdfs_path + " " + full_out_path + " " + arg;
-            Process proc = runtime.exec(command);
-            return getResults(full_out_path);
+            String arg = Settings.class.getDeclaredField(option.argType).get(settings).toString();
+            String fileNameInHdfs = uploadIntoHDFS(dataset_path);
+            String command ="hadoop jar " + getPathFromResources(jar_path) + " /" + fileNameInHdfs
+                    + " " + CONSTANTS.output_path + " " + arg;
+            runCommand(command);
+            return getResults();
         }catch(Exception e){
             e.printStackTrace();
         }

@@ -61,7 +61,8 @@ public class MainController {
 
     @PostMapping("/download_results")
     public ResponseEntity downloadResults() throws FileNotFoundException, IOException{
-        File file = resourceLoader.getResource("classpath:"+CONSTANTS.output_name).getFile();
+
+        File file = hadoopService.downloadLastResult();
         InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
 
         return ResponseEntity.ok()

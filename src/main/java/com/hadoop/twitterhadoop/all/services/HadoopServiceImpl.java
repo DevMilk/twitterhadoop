@@ -28,7 +28,7 @@ public class HadoopServiceImpl implements HadoopService{
 
             if(CONSTANTS.isWindows){
                 ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", command);
-                builder.redirectErrorStream(true);
+                builder.redirectErrorStream(false);
                 process = builder.start();
             } else {
                 process = Runtime.getRuntime().exec(command);
@@ -37,9 +37,10 @@ public class HadoopServiceImpl implements HadoopService{
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line = "";
             while ((line = reader.readLine()) != null) {
+                System.out.println(line);
                 out += (line + "\n");
             }
-            System.out.println(out);
+
             process.waitFor();
             reader.close();
             return out;
@@ -60,9 +61,9 @@ public class HadoopServiceImpl implements HadoopService{
         return "";
     }
     public File downloadLastResult() throws IOException{
-        String command = "hdfs dfs -get " + CONSTANTS.full_output_path_hdfs;
+        String command = "hdfs dfs -get -f " + CONSTANTS.full_output_path_hdfs;
         runCommand(command);
-        return resourceLoader.getResource("classpath:" + CONSTANTS.output_name).getFile();
+        return new File(CONSTANTS.output_name);
     }
     public String uploadIntoHDFS(String file_path) {
         String command = "hdfs dfs -put -f " + file_path + " /"; ;
@@ -80,7 +81,7 @@ public class HadoopServiceImpl implements HadoopService{
         String jar_path = option.path;
         try {
             String arg = Settings.class.getDeclaredField(option.argType).get(settings).toString();
-            String fileNameInHdfs = uploadIntoHDFS(dataset_path);
+            String fileNameInHdfs = FileNameUtils.getBaseName(dataset_path)+"."+FileNameUtils.getExtension(dataset_path).split("\"")[0];;
             String command ="hadoop jar " + getPathFromResources(jar_path) + " /" + fileNameInHdfs
                     + " " + CONSTANTS.output_path + " " + arg;
             runCommand(command);

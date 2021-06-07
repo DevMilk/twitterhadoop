@@ -31,3 +31,5 @@ build/
 
 ### VS Code ###
 .vscode/
+part-r-00000
+src/main/resources/datasets/tweets.csv

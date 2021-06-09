@@ -27,7 +27,7 @@ public class HadoopServiceImpl implements HadoopService{
             Process process = null;
 
             if(CONSTANTS.isWindows){
-                ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", command);
+                ProcessBuilder builder = new ProcessBuilder("cmd","/C",command);
                 builder.redirectErrorStream(false);
                 process = builder.start();
             } else {
@@ -38,7 +38,10 @@ public class HadoopServiceImpl implements HadoopService{
             String line = "";
             while ((line = reader.readLine()) != null) {
                 System.out.println(line);
-                out += (line + "\n");
+                if(out=="")
+                    out+="\n";
+                else
+                    out += (line + "\n");
             }
 
             process.waitFor();

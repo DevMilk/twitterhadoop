@@ -59,7 +59,7 @@ public class MainController {
 
     }
 
-    @PostMapping("/download_results")
+    @GetMapping("/download_results")
     public ResponseEntity downloadResults() throws FileNotFoundException, IOException{
 
         File file = hadoopService.downloadLastResult();
